@@ -3,6 +3,7 @@ import json
 
 import pandas as pd
 from scipy import stats
+import numpy as np
 
 
 EVAL_COLS_UNIQUE = ['dataset',
@@ -33,6 +34,9 @@ def score_correlations( df_human, df_auto ) :
     results = {}
 
     for lang in ['en','zh'] :
+
+        meanmetrics = []
+
         for metric in LANG2METRICS[lang] :
 
             df_human_temp = df_human[ (df_human['lang']==lang) & (df_human['metric']==metric) ]
@@ -43,6 +47,8 @@ def score_correlations( df_human, df_auto ) :
             results[ '{}-{}-{}-{}'.format('ALL',lang,metric,'kendalltau') ] = kendalltau
             results[ '{}-{}-{}-{}'.format('ALL',lang,metric,'pearson') ] = pearson
             results[ '{}-{}-{}-{}'.format('ALL',lang,metric,'spearman') ] = spearman
+            results[ '{}-{}-{}-{}'.format('ALL',lang,metric,'mean') ] = np.mean( [kendalltau, pearson, spearman] )
+            meanmetrics.append( results[ '{}-{}-{}-{}'.format('ALL',lang,metric,'mean') ] )
 
             for dataset in DATASETS :
                 df_human_temp = df_human[ (df_human['lang']==lang) & (df_human['metric']==metric) & (df_human['dataset']==dataset) ]
@@ -53,6 +59,9 @@ def score_correlations( df_human, df_auto ) :
                 results[ '{}-{}-{}-{}'.format(dataset,lang,metric,'kendalltau') ] = kendalltau
                 results[ '{}-{}-{}-{}'.format(dataset,lang,metric,'pearson') ] = pearson
                 results[ '{}-{}-{}-{}'.format(dataset,lang,metric,'spearman') ] = spearman
+                results[ '{}-{}-{}-{}'.format(dataset,lang,metric,'mean') ] = np.mean( [kendalltau, pearson, spearman] )
+
+        results[ '{}-{}-{}-{}'.format('ALL',lang,'ALL','mean') ] = np.mean( meanmetrics )
 
     return results
 
@@ -65,6 +74,8 @@ if __name__ == "__main__":
 
     fn_human = sys.argv[1]
     fn_auto = sys.argv[2]
+
+    scores_path = sys.argv[3] if len(sys.argv) >=4 else 'scores.json'
 
     df_human = pd.read_csv(fn_human)
     df_auto = pd.read_csv(fn_auto).drop_duplicates(subset=EVAL_COLS_UNIQUE)
@@ -85,5 +96,5 @@ if __name__ == "__main__":
     
     scores = score_correlations( df_human, df_auto )
 
-    with open( 'scores.json', 'w' ) as f :
+    with open( scores_path, 'w' ) as f :
         json.dump( scores, f, indent=4 )
